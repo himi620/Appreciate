@@ -3,22 +3,14 @@ import FAQ from '../../../models/FAQ.js';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
 
-export const config = {
-  api: {
-    bodyParser: false
-  }
-};
-
 cloudinary.config({
   cloud_name: 'dhvfznd9x',
   api_key: '846937789899568',
   api_secret: 'qWPoI5oTzJG5lz0oqdMNbW7nIgs',
 });
 
-
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
-
 
 const runMiddleware = (req, res, fn) => {
   return new Promise((resolve, reject) => {
@@ -31,29 +23,12 @@ const runMiddleware = (req, res, fn) => {
   });
 };
 
-
-export async function GET(req) {
+// Disable the default body parser for the POST method
+export const POST = async (req) => {
   await dbConnect();
 
   try {
-    const faqs = await FAQ.find({});
-    return new Response(JSON.stringify(faqs), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: 'Failed to fetch FAQs' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-}
-
-export async function POST(req) {
-  await dbConnect();
-
-  try {
-    
+    // Use middleware for file uploads
     await runMiddleware(req, {}, upload.single('image'));
 
     const formData = await req.formData();
@@ -65,7 +40,6 @@ export async function POST(req) {
 
     console.log("🥱", title, content, file);
 
-   
     if (!title || !content || !file) {
       return new Response(
         JSON.stringify({ error: 'Title, content, and image are required' }),
@@ -76,11 +50,9 @@ export async function POST(req) {
       );
     }
 
-  
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
- 
     const uploadResult = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         { resource_type: 'image' },
@@ -94,7 +66,6 @@ export async function POST(req) {
       stream.end(buffer); 
     });
 
-   
     const newFAQ = new FAQ({
       title,
       content,
@@ -116,14 +87,29 @@ export async function POST(req) {
       }
     );
   }
+};
+
+// Other handlers remain unchanged
+export async function GET(req) {
+  await dbConnect();
+
+  try {
+    const faqs = await FAQ.find({});
+    return new Response(JSON.stringify(faqs), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: 'Failed to fetch FAQs' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 }
-
-
 
 export async function DELETE(req) {
   await dbConnect();
 
-  
   const id = req.url.split('/').pop();  
 
   console.log(id);
@@ -168,8 +154,6 @@ export async function DELETE(req) {
     );
   }
 }
-
-
 
 export async function PATCH(req) {
   await dbConnect();
@@ -222,7 +206,6 @@ export async function PATCH(req) {
     );
   }
 }
-
 
 export async function OPTIONS(req) {
   return new Response(null, {
